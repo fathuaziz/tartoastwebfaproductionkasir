@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kasir TarToast</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .order-list {
+            margin-top: 20px;
+        }
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .order-item:last-child {
+            border-bottom: none;
+        }
+        .order-controls {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .order-controls button {
+            padding: 2px 8px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .order-controls button.increase {
+            background-color: #4caf50;
+        }
+        .order-controls button.decrease {
+            background-color: #ff9800;
+        }
+        .order-quantity {
+            min-width: 20px;
+            text-align: center;
+        }
+        .total-section {
+            font-size: 1.2em;
+            font-weight: bold;
+            text-align: right;
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 2px solid #333;
+        }
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-send {
+            background-color: #4caf50;
+            color: white;
+        }
+        .btn-clear {
+            background-color: #f44336;
+            color: white;
+        }
+        .btn-refresh {
+            background-color: #2196f3;
+            color: white;
+        }
+        .btn-print {
+            background-color: #9c27b0;
+            color: white;
+        }
+        .btn-reset {
+            background-color: #ff5722;
+            color: white;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        #empty-order {
+            text-align: center;
+            color: #888;
+            font-style: italic;
+        }
+        .order-history {
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .order-history-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .order-history-item:last-child {
+            border-bottom: none;
+        }
+        .current-order {
+            background-color: #f0f0f0;
+            border-left: 4px solid #2196f3;
+        }
+        .grand-total {
+            background-color: #e3f2fd;
+            font-weight: bold;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            width: 300px;
+        }
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
+            gap: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Kasir TarToast</h1>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Memproses data...</p>
+        </div>
+        
+        <div class="section">
+            <h2>Informasi Kasir</h2>
+            <div class="form-group">
+                <label for="cashier-name">Nama Kasir:</label>
+                <input type="text" id="cashier-name" placeholder="Nama kasir yang bertugas" required>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Pesanan</h2>
+            <div class="form-group">
+                <label for="menu-select">Pilih Menu:</label>
+                <select id="menu-select">
+                    <option value="">Pilih Menu</option>
+                </select>
+            </div>
+            
+            <div id="order-list" class="order-list">
+                <p id="empty-order">Belum ada pesanan</p>
+            </div>
+            <div class="total-section">
+                Total: Rp <span id="total-amount">0</span>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Total Orderan Hari Ini</h2>
+            <div id="order-history" class="order-history">
+                <p id="empty-history">Belum ada transaksi hari ini</p>
+            </div>
+        </div>
+        
+        <div class="buttons">
+            <button class="btn-refresh" id="refresh-btn">Refresh Menu</button>
+            <div>
+                <button class="btn-clear" id="clear-btn">Hapus Pesanan</button>
+                <button class="btn-print" id="print-btn">Cetak Struk</button>
+                <button class="btn-reset" id="reset-btn">Reset Hari Ini</button>
+                <button class="btn-send" id="send-btn">Simpan Order</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal untuk Reset -->
+    <div id="reset-modal" class="modal">
+        <div class="modal-content">
+            <h2>Reset Data Harian</h2>
+            <p>Masukkan username dan password untuk reset:</p>
+            <div class="form-group">
+                <label for="reset-username">Username:</label>
+                <input type="text" id="reset-username" placeholder="Username">
+            </div>
+            <div class="form-group">
+                <label for="reset-password">Password:</label>
+                <input type="password" id="reset-password" placeholder="Password">
+            </div>
+            <div class="modal-buttons">
+                <button id="cancel-reset">Batal</button>
+                <button class="btn-reset" id="confirm-reset">Reset</button>
+            </div>
+            <p id="reset-error" style="color: red; display: none;">Username atau password salah!</p>
+        </div>
+    </div>
+
+    <script>
+        // Konfigurasi
+        const MENU_SHEET_ID = "1YgOTXFSUwLzpfK1_YQekEN7N5G_45J2o711YX86-siQ";
+        const MENU_SHEET_NAME = 'Menu';
+        const API_KEY = "AIzaSyAz9kMUAWD-MfveClgQJnNV55kTKmrx-Yk";
+        const ADMIN_CREDENTIALS = {
+            username: "owner",
+            password: "tartoast"
+        };
+
+        // Variabel global untuk state aplikasi
+        let state = {
+            menuItems: [],
+            orderItems: [],
+            dailyOrders: JSON.parse(localStorage.getItem('dailyOrders')) || [],
+            orderCounter: 1
+        };
+
+        // Inisialisasi counter dari data yang ada
+        if (state.dailyOrders.length > 0) {
+            state.orderCounter = Math.max(...state.dailyOrders.map(o => o.number)) + 1;
+        }
+
+        // Fungsi untuk memuat menu dari Google Sheets
+        async function loadMenu() {
+            showLoading(true);
+            try {
+                const url = `https://sheets.googleapis.com/v4/spreadsheets/${MENU_SHEET_ID}/values/${MENU_SHEET_NAME}?key=${API_KEY}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const data = await response.json();
+                
+                if (data.values && data.values.length > 1) {
+                    state.menuItems = data.values.slice(1).map((row, index) => ({
+                        id: `item-${index}-${Date.now()}`,
+                        name: row[0] || 'Menu tanpa nama',
+                        price: parseInt(row[1]) || 0
+                    }));
+                    
+                    renderMenuDropdown();
+                    renderOrderHistory();
+                } else {
+                    throw new Error('Data menu kosong');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                // Fallback data dummy
+                state.menuItems = [
+                    { id: '1', name: 'Nasi Goreng', price: 25000 },
+                    { id: '2', name: 'Mie Goreng', price: 20000 },
+                    { id: '3', name: 'Es Teh', price: 5000 },
+                    { id: '4', name: 'Es Jeruk', price: 7000 }
+                ];
+                renderMenuDropdown();
+                alert('Menggunakan data lokal karena gagal mengambil dari server');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Fungsi untuk render dropdown menu
+        function renderMenuDropdown() {
+            const menuSelect = document.getElementById('menu-select');
+            
+            // Hapus opsi lama kecuali yang pertama
+            while (menuSelect.options.length > 1) {
+                menuSelect.remove(1);
+            }
+            
+            // Tambahkan menu
+            state.menuItems.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = `${item.name} - Rp ${item.price.toLocaleString('id-ID')}`;
+                menuSelect.appendChild(option);
+            });
+        }
+
+        // Fungsi untuk menambah item ke pesanan
+        function addToOrder(menuId) {
+            const menuItem = state.menuItems.find(item => item.id === menuId);
+            if (!menuItem) return;
+            
+            const existingIndex = state.orderItems.findIndex(item => item.menuId === menuId);
+            
+            if (existingIndex >= 0) {
+                // Jika item sudah ada, tambahkan quantity
+                state.orderItems[existingIndex].quantity += 1;
+            } else {
+                // Jika item baru, tambahkan ke array
+                state.orderItems.push({
+                    menuId: menuItem.id,
+                    name: menuItem.name,
+                    price: menuItem.price,
+                    quantity: 1
+                });
+            }
+            
+            renderOrder();
+            renderOrderHistory();
+        }
+
+        // Fungsi untuk render pesanan
+        function renderOrder() {
+            const orderList = document.getElementById('order-list');
+            const emptyOrder = document.getElementById('empty-order');
+            const totalAmount = document.getElementById('total-amount');
+            
+            if (state.orderItems.length === 0) {
+                emptyOrder.style.display = 'block';
+                orderList.innerHTML = '';
+                totalAmount.textContent = '0';
+                return;
+            }
+            
+            emptyOrder.style.display = 'none';
+            
+            let total = 0;
+            let orderHtml = '';
+            
+            state.orderItems.forEach((item, index) => {
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+                
+                orderHtml += `
+                    <div class="order-item">
+                        <div>
+                            <strong>${item.name}</strong>
+                            <p>Rp ${item.price.toLocaleString('id-ID')}</p>
+                        </div>
+                        <div class="order-controls">
+                            <span>Rp ${itemTotal.toLocaleString('id-ID')}</span>
+                            <button class="decrease" data-index="${index}">-</button>
+                            <span class="order-quantity">${item.quantity}</span>
+                            <button class="increase" data-index="${index}">+</button>
+                            <button class="remove" data-index="${index}">×</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            orderList.innerHTML = orderHtml;
+            totalAmount.textContent = total.toLocaleString('id-ID');
+            
+            // Pasang event listeners
+            setupOrderEventListeners();
+        }
+
+        // Fungsi untuk pasang event listeners ke tombol order
+        function setupOrderEventListeners() {
+            // Tombol +
+            document.querySelectorAll('.increase').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.getAttribute('data-index'));
+                    state.orderItems[index].quantity += 1;
+                    renderOrder();
+                    renderOrderHistory();
+                });
+            });
+            
+            // Tombol -
+            document.querySelectorAll('.decrease').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.getAttribute('data-index'));
+                    if (state.orderItems[index].quantity > 1) {
+                        state.orderItems[index].quantity -= 1;
+                    } else {
+                        state.orderItems.splice(index, 1);
+                    }
+                    renderOrder();
+                    renderOrderHistory();
+                });
+            });
+            
+            // Tombol ×
+            document.querySelectorAll('.remove').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const index = parseInt(e.target.getAttribute('data-index'));
+                    state.orderItems.splice(index, 1);
+                    renderOrder();
+                    renderOrderHistory();
+                });
+            });
+        }
+
+        // Fungsi untuk render riwayat order
+        function renderOrderHistory() {
+            const orderHistory = document.getElementById('order-history');
+            const emptyHistory = document.getElementById('empty-history');
+            
+            const currentOrderTotal = state.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const savedOrdersTotal = state.dailyOrders.reduce((sum, order) => sum + order.total, 0);
+            const grandTotal = savedOrdersTotal + currentOrderTotal;
+            
+            if (state.dailyOrders.length === 0 && state.orderItems.length === 0) {
+                emptyHistory.style.display = 'block';
+                orderHistory.innerHTML = '';
+                return;
+            }
+            
+            emptyHistory.style.display = 'none';
+            
+            let historyHtml = '';
+            
+            // Order yang sudah disimpan
+            state.dailyOrders.forEach(order => {
+                historyHtml += `
+                    <div class="order-history-item">
+                        <strong>Order #${order.number}</strong> (${order.date})<br>
+                        Kasir: ${order.cashier}<br>
+                        ${order.items.map(item => `${item.name} x${item.quantity}`).join(', ')}<br>
+                        <strong>Total: Rp ${order.total.toLocaleString('id-ID')}</strong>
+                    </div>
+                `;
+            });
+            
+            // Order dalam proses
+            if (state.orderItems.length > 0) {
+                historyHtml += `
+                    <div class="order-history-item current-order">
+                        <strong>Order Dalam Proses</strong><br>
+                        ${state.orderItems.map(item => `${item.name} x${item.quantity}`).join(', ')}<br>
+                        <strong>Total: Rp ${currentOrderTotal.toLocaleString('id-ID')}</strong>
+                    </div>
+                `;
+            }
+            
+            // Grand total
+            historyHtml += `
+                <div class="order-history-item grand-total">
+                    <strong>TOTAL KESELURUHAN: Rp ${grandTotal.toLocaleString('id-ID')}</strong>
+                </div>
+            `;
+            
+            orderHistory.innerHTML = historyHtml;
+        }
+
+        // Fungsi untuk simpan order
+        function saveOrder() {
+            const cashierName = document.getElementById('cashier-name').value.trim();
+            
+            if (!cashierName) {
+                alert('Harap masukkan nama kasir');
+                return;
+            }
+            
+            if (state.orderItems.length === 0) {
+                alert('Tidak ada pesanan untuk disimpan');
+                return;
+            }
+            
+            const now = new Date();
+            const total = state.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            
+            const order = {
+                number: state.orderCounter,
+                date: now.toLocaleString('id-ID'),
+                cashier: cashierName,
+                items: JSON.parse(JSON.stringify(state.orderItems)),
+                total: total
+            };
+            
+            state.dailyOrders.push(order);
+            localStorage.setItem('dailyOrders', JSON.stringify(state.dailyOrders));
+            
+            state.orderCounter++;
+            
+            alert(`Order #${order.number} disimpan!\nTotal: Rp ${total.toLocaleString('id-ID')}`);
+            
+            clearOrder();
+            renderOrderHistory();
+        }
+
+        // Fungsi untuk hapus pesanan saat ini
+        function clearOrder() {
+            state.orderItems = [];
+            renderOrder();
+            renderOrderHistory();
+        }
+
+        // Fungsi untuk cetak struk
+        function printReceipt() {
+            if (state.orderItems.length === 0) {
+                alert('Tidak ada pesanan untuk dicetak');
+                return;
+            }
+            
+            const cashierName = document.getElementById('cashier-name').value.trim() || '-';
+            const now = new Date();
+            const total = state.orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            
+            let receiptContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Struk TarToast</title>
+                    <style>
+                        body { font-family: Arial; margin: 0; padding: 10px; }
+                        .receipt { width: 80mm; margin: 0 auto; }
+                        .header { text-align: center; }
+                        .title { font-size: 18px; font-weight: bold; }
+                        .divider { border-top: 1px dashed #000; margin: 5px 0; }
+                        .item { display: flex; justify-content: space-between; }
+                        .total { font-weight: bold; border-top: 1px dashed #000; padding-top: 5px; }
+                        .footer { text-align: center; margin-top: 10px; font-size: 12px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="receipt">
+                        <div class="header">
+                            <div class="title">TARTOAST</div>
+                            <div>${now.toLocaleString('id-ID')}</div>
+                            <div>Kasir: ${cashierName}</div>
+                        </div>
+                        <div class="divider"></div>
+            `;
+            
+            state.orderItems.forEach(item => {
+                receiptContent += `
+                    <div class="item">
+                        <span>${item.name} x${item.quantity}</span>
+                        <span>Rp ${(item.price * item.quantity).toLocaleString('id-ID')}</span>
+                    </div>
+                `;
+            });
+            
+            receiptContent += `
+                        <div class="divider"></div>
+                        <div class="item total">
+                            <span>TOTAL</span>
+                            <span>Rp ${total.toLocaleString('id-ID')}</span>
+                        </div>
+                        <div class="footer">
+                            Terima kasih
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `;
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.open();
+            printWindow.document.write(receiptContent);
+            printWindow.document.close();
+            
+            setTimeout(() => {
+                printWindow.print();
+            }, 200);
+        }
+
+        // Fungsi untuk reset data harian
+        function resetDailyOrders() {
+            document.getElementById('reset-modal').style.display = 'flex';
+            document.getElementById('reset-username').value = '';
+            document.getElementById('reset-password').value = '';
+            document.getElementById('reset-error').style.display = 'none';
+        }
+
+        // Fungsi untuk konfirmasi reset
+        function confirmReset() {
+            const username = document.getElementById('reset-username').value;
+            const password = document.getElementById('reset-password').value;
+            
+            if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+                state.dailyOrders = [];
+                state.orderCounter = 1;
+                localStorage.setItem('dailyOrders', JSON.stringify(state.dailyOrders));
+                document.getElementById('reset-modal').style.display = 'none';
+                renderOrderHistory();
+                alert('Data harian telah direset');
+            } else {
+                document.getElementById('reset-error').style.display = 'block';
+            }
+        }
+
+        // Fungsi untuk tampilkan loading
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        // Inisialisasi saat halaman dimuat
+        document.addEventListener('DOMContentLoaded', () => {
+            // Event listeners
+            document.getElementById('menu-select').addEventListener('change', function() {
+                if (this.value) {
+                    addToOrder(this.value);
+                    this.value = '';
+                }
+            });
+            
+            document.getElementById('refresh-btn').addEventListener('click', loadMenu);
+            document.getElementById('clear-btn').addEventListener('click', clearOrder);
+            document.getElementById('print-btn').addEventListener('click', printReceipt);
+            document.getElementById('reset-btn').addEventListener('click', resetDailyOrders);
+            document.getElementById('send-btn').addEventListener('click', saveOrder);
+            document.getElementById('cancel-reset').addEventListener('click', () => {
+                document.getElementById('reset-modal').style.display = 'none';
+            });
+            document.getElementById('confirm-reset').addEventListener('click', confirmReset);
+            
+            // Muat menu awal
+            loadMenu();
+        });
+    </script>
+</body>
+</html>
